@@ -1,216 +1,153 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { useArgumentStore } from "@/src/state/argumentStore";
-import { useHistoryStore } from "@/src/state/historyStore";
-import { generateCase } from "@/src/agents/caseCreator";
-import { ConversationHistory } from "@/src/components/ConversationHistory";
-import { createClient } from "@/src/lib/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
+import { useArgumentStore } from "@/lib/state/argumentStore";
+import { useHistoryStore } from "@/lib/state/historyStore";
+import { generateCase } from "@/lib/agents/caseCreator";
+import type { SavedArgument } from "@/lib/types";
 
-export default function SplashScreen() {
+function Header() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  return (
+    <header className="flex items-center justify-between px-5 py-4">
+      <button
+        onClick={() => router.push("/leaderboard")}
+        className="text-xs font-medium px-4 py-2 rounded-full border cursor-pointer transition-colors hover:bg-white/5"
+        style={{ borderColor: "var(--chip-border)", color: "var(--text-secondary)" }}
+      >
+        Leaderboard
+      </button>
+      <button
+        onClick={() => router.push("/profile")}
+        className="text-xs font-medium px-4 py-2 rounded-full border cursor-pointer transition-colors hover:bg-white/5"
+        style={{ borderColor: "var(--chip-border)", color: "var(--text-secondary)" }}
+      >
+        Profile
+      </button>
+    </header>
+  );
+}
+
+function ArgumentHistoryItem({ arg, onClick }: { arg: SavedArgument; onClick: () => void }) {
+  const outcomeColor = arg.outcome === "won" ? "#22c55e" : arg.outcome === "lost" ? "#ef4444" : "var(--text-muted)";
+  return (
+    <button onClick={onClick} className="w-full text-left px-5 py-4 rounded-2xl border cursor-pointer transition-all hover:bg-white/[0.03] active:scale-[0.99]" style={{ background: "var(--bg-card)", borderColor: "rgba(255,255,255,0.06)" }}>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h3 className="text-sm font-medium flex-1 line-clamp-1" style={{ color: "var(--text-primary)" }}>{arg.caseData.title}</h3>
+        <span className="text-[10px] font-semibold tracking-wider shrink-0 px-2 py-0.5 rounded-full" style={{ color: outcomeColor, background: `${outcomeColor}15` }}>
+          {arg.outcome.toUpperCase()}
+        </span>
+      </div>
+      <p className="text-xs line-clamp-1 mb-2" style={{ color: "var(--text-muted)" }}>{arg.caseData.charge}</p>
+      <div className="flex items-center gap-3">
+        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{arg.exchangeCount} rounds</span>
+        <span className="text-[10px]" style={{ color: "var(--accent)" }}>Score: {arg.score}</span>
+      </div>
+    </button>
+  );
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { initCase, setPhase, reset, selectEvidenceCards } = useArgumentStore();
+  const { arguments: savedArgs, hydrate } = useHistoryStore();
 
-  const { initCase, setGeneratingCase, reset } = useArgumentStore();
-  const { setUserId: setHistoryUserId, hydrate } = useHistoryStore();
-
-  // Check auth state and hydrate history
   useEffect(() => {
-    async function init() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        setUserId(user.id);
-        setHistoryUserId(user.id);
-
-        // Get display name
-        const { data } = await supabase
-          .from("profiles")
-          .select("display_name, avatar_url")
-          .eq("id", user.id)
-          .single();
-        if (data) {
-          const d = data as { display_name: string; avatar_url: string | null };
-          setDisplayName(d.display_name);
-          setAvatarUrl(d.avatar_url);
-        }
-      }
-
-      await hydrate();
-    }
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleEnter = useCallback(async () => {
-    if (loading) return;
-    setLoading(true);
-    setError(null);
-    setGeneratingCase(true);
     reset();
+    hydrate();
+  }, [reset, hydrate]);
 
+  const handleEnterCourtroom = useCallback(async () => {
+    setIsGenerating(true);
+    setError(null);
     try {
       const caseData = await generateCase();
       initCase(caseData);
-      setGeneratingCase(false);
-      router.push("/court-intro");
-    } catch (err: unknown) {
-      setGeneratingCase(false);
-      setLoading(false);
-      const msg = err instanceof Error ? err.message : "Failed to generate case";
-      setError(msg);
+      const allDefIds = caseData.defendant_points.map((p) => p.id);
+      selectEvidenceCards(allDefIds);
+      setPhase("chat");
+      router.push("/chat");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate case");
+      setIsGenerating(false);
     }
-  }, [loading, initCase, setGeneratingCase, reset, router]);
-
-  const handleViewArgument = useCallback(
-    (id: string) => {
-      router.push(`/argument/${id}`);
-    },
-    [router]
-  );
+  }, [initCase, setPhase, selectEvidenceCards, router, reset]);
 
   return (
-    <div
-      className="flex flex-col h-dvh select-none"
-      style={{ background: "var(--bg)" }}
-    >
-      {/* Top section: title + button */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="text-center pt-10 pb-4 px-8 shrink-0"
-      >
-        {/* Nav bar */}
-        <div className="flex items-center justify-between mb-6 -mx-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push("/leaderboard")}
-              className="text-xs px-3 py-1.5 rounded-full border cursor-pointer hover:bg-white/5 transition-all duration-150"
-              style={{ borderColor: "var(--chip-border)", color: "var(--text-secondary)" }}
-            >
-              Leaderboard
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            {userId ? (
-              <button
-                onClick={() => router.push("/profile")}
-                className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border cursor-pointer hover:bg-white/5 transition-all duration-150"
-                style={{ borderColor: "var(--chip-border)", color: "var(--text-secondary)" }}
-              >
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold overflow-hidden"
-                  style={{ background: "var(--bg-card)", color: "var(--primary)" }}
-                >
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    (displayName ?? "?").charAt(0).toUpperCase()
-                  )}
-                </span>
-                {displayName ?? "Profile"}
-              </button>
+    <div className="min-h-dvh flex flex-col" style={{ background: "var(--bg)" }}>
+      <Header />
+
+      <main className="flex-1 flex flex-col items-center px-5 pt-8">
+        {/* Title */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" style={{ color: "var(--text-primary)" }}>
+            AI Courtroom
+          </h1>
+          <p className="text-sm max-w-xs mx-auto leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Where absurdity meets philosophy and justice is debatable
+          </p>
+        </motion.div>
+
+        {/* CTAs */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.5 }} className="w-full max-w-sm flex flex-col gap-3 mb-10">
+          <button
+            onClick={handleEnterCourtroom}
+            disabled={isGenerating}
+            className="w-full py-4 rounded-2xl text-sm font-semibold tracking-[0.2em] transition-all duration-200 hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+            style={{ background: "var(--primary)", color: "#fff", boxShadow: "0 4px 24px rgba(255,56,92,0.25)" }}
+          >
+            {isGenerating ? (
+              <span className="flex items-center justify-center gap-2">
+                <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                GENERATING CASE...
+              </span>
             ) : (
-              <button
-                onClick={() => router.push("/login")}
-                className="text-xs px-3.5 py-1.5 rounded-full cursor-pointer transition-all duration-150 font-medium"
-                style={{ background: "var(--primary)", color: "white" }}
-              >
-                Sign In
-              </button>
+              "ENTER THE COURTROOM"
             )}
-          </div>
-        </div>
+          </button>
 
-        <p className="text-[10px] tracking-[0.5em] font-medium mb-1" style={{ color: "var(--accent)" }}>
-          LEGALEZ
-        </p>
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          AI Courtroom
-        </h1>
-        <div className="w-10 h-[2px] mx-auto mt-3 mb-3 rounded-full" style={{ background: "var(--primary)" }} />
-        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
-          Where absurdity meets philosophy and justice is debatable
-        </p>
-
-        {/* Enter button */}
-        <div className="flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
-          {loading ? (
-            <div className="flex flex-col items-center gap-3 py-3">
-              <div
-                className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-                style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }}
-              />
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Preparing the case...</p>
-            </div>
-          ) : (
-            <button
-              onClick={handleEnter}
-              className="w-full py-3.5 px-8 rounded-full text-white text-sm font-semibold tracking-widest
-                         transition-all duration-200 hover:brightness-110 active:scale-[0.98] cursor-pointer"
-              style={{
-                background: "var(--primary)",
-                boxShadow: "0 4px 20px rgba(255, 56, 92, 0.3)",
-              }}
-            >
-              ENTER THE COURTROOM
-            </button>
-          )}
           <button
             onClick={() => router.push("/prep/new")}
-            className="w-full py-3.5 px-8 rounded-full text-sm font-semibold tracking-widest
-                       transition-all duration-200 hover:brightness-110 active:scale-[0.98] cursor-pointer"
-            style={{
-              background: "transparent",
-              border: "1.5px solid var(--accent)",
-              color: "var(--accent)",
-            }}
+            className="w-full py-4 rounded-2xl text-sm font-semibold tracking-[0.2em] border-2 transition-all duration-200 hover:bg-[var(--accent)]/10 active:scale-[0.98] cursor-pointer"
+            style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "transparent" }}
           >
             CASE PREP MODE
           </button>
           <p className="text-[11px] text-center" style={{ color: "var(--text-muted)" }}>
             Upload real case documents and spar against AI opposing counsel
           </p>
+        </motion.div>
+
+        {/* Error */}
+        <AnimatePresence>
           {error && (
-            <p className="text-xs text-center mt-1" style={{ color: "var(--primary)" }}>{error}</p>
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="w-full max-w-sm mb-6 px-4 py-3 rounded-xl text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>
+              {error}
+            </motion.div>
           )}
-        </div>
-      </motion.div>
+        </AnimatePresence>
 
-      {/* Divider */}
-      <div className="px-8 py-2 shrink-0">
-        <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
-      </div>
-
-      {/* History section */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
-        className="flex-1 min-h-0 flex flex-col"
-      >
-        <h2
-          className="text-xs font-medium tracking-wider uppercase px-8 mb-3"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Past Arguments
-        </h2>
-        <ConversationHistory onViewArgument={handleViewArgument} />
-      </motion.div>
+        {/* Past Arguments */}
+        {savedArgs.length > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="w-full max-w-sm">
+            <h2 className="text-xs font-medium tracking-wider uppercase mb-3" style={{ color: "var(--text-muted)" }}>Past Arguments</h2>
+            <div className="flex flex-col gap-2.5 pb-6 max-h-[40dvh] overflow-y-auto">
+              {savedArgs.slice(0, 20).map((arg) => (
+                <ArgumentHistoryItem key={arg.id} arg={arg} onClick={() => router.push(`/argument/${arg.id}`)} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </main>
 
       {/* Footer */}
-      <p className="text-[10px] text-center py-3 shrink-0" style={{ color: "var(--text-muted)" }}>
-        Powered by AI
-      </p>
+      <footer className="py-4 text-center">
+        <p className="text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>Powered by Claude AI</p>
+      </footer>
     </div>
   );
 }

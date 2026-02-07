@@ -1,9 +1,16 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: "Berkeley Mono", var(--font-geist-sans), system-ui, -apple-system,
+    sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
 /* Berkeley Mono — loaded from local install with Geist fallback */
 @font-face {
   font-family: "Berkeley Mono";
-  src: local("Berkeley Mono"), local("BerkeleyMono-Regular"), local("BerkeleyMono");
+  src: local("Berkeley Mono"), local("BerkeleyMono-Regular"),
+    local("BerkeleyMono");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -29,49 +36,49 @@
   --bg: #111111;
   --bg-light: #1a1a1a;
   --bg-card: #222222;
-  --primary: #FF385C;
-  --primary-dark: #E0294A;
-  --accent: #E0B97A;
-  --text-primary: #F7F7F7;
-  --text-secondary: #B0B0B0;
+  --primary: #ff385c;
+  --primary-dark: #e0294a;
+  --accent: #e0b97a;
+  --text-primary: #f7f7f7;
+  --text-secondary: #b0b0b0;
   --text-muted: #717171;
-  --attorney-bubble: #1E1E2A;
-  --attorney-text: #E0D4F0;
-  --user-bubble: #1A2530;
-  --user-text: #D0E4F5;
-  --chip-default: #1F1F1F;
+  --attorney-bubble: #1e1e2a;
+  --attorney-text: #e0d4f0;
+  --user-bubble: #1a2530;
+  --user-text: #d0e4f5;
+  --chip-default: #1f1f1f;
   --chip-border: #333333;
-  --chip-text: #E0E0E0;
-  --chip-surrender: #DC2626;
-  --objection: #FF385C;
-  --hold-it: #E0B97A;
-  --take-that: #34D399;
-  --guilty: #DC2626;
+  --chip-text: #e0e0e0;
+  --chip-surrender: #dc2626;
+  --objection: #ff385c;
+  --hold-it: #e0b97a;
+  --take-that: #34d399;
+  --guilty: #dc2626;
 }
 
-/* ─── Light mode ─── */
+/* Light mode */
 .light {
-  --bg: #FFFFFF;
-  --bg-light: #F7F7F7;
-  --bg-card: #EFEFEF;
-  --primary: #FF385C;
-  --primary-dark: #E0294A;
-  --accent: #C4943F;
+  --bg: #ffffff;
+  --bg-light: #f7f7f7;
+  --bg-card: #efefef;
+  --primary: #ff385c;
+  --primary-dark: #e0294a;
+  --accent: #c4943f;
   --text-primary: #222222;
   --text-secondary: #484848;
   --text-muted: #717171;
-  --attorney-bubble: #F0ECF5;
-  --attorney-text: #3B2D5E;
-  --user-bubble: #ECF3F8;
-  --user-text: #1A3550;
-  --chip-default: #F7F7F7;
-  --chip-border: #DDDDDD;
+  --attorney-bubble: #f0ecf5;
+  --attorney-text: #3b2d5e;
+  --user-bubble: #ecf3f8;
+  --user-text: #1a3550;
+  --chip-default: #f7f7f7;
+  --chip-border: #dddddd;
   --chip-text: #222222;
-  --chip-surrender: #DC2626;
-  --objection: #FF385C;
-  --hold-it: #C4943F;
+  --chip-surrender: #dc2626;
+  --objection: #ff385c;
+  --hold-it: #c4943f;
   --take-that: #059669;
-  --guilty: #DC2626;
+  --guilty: #dc2626;
 }
 
 .light ::-webkit-scrollbar-thumb {
@@ -95,7 +102,8 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text-primary);
-  font-family: "Berkeley Mono", var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-family: "Berkeley Mono", var(--font-geist-sans), system-ui,
+    -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
@@ -125,7 +133,9 @@ body {
 }
 
 /* Ensure legible input text on mobile */
-input, textarea, select {
+input,
+textarea,
+select {
   font-size: 16px;
 }
 

@@ -1,10 +1,6 @@
-@import "tailwindcss";
-
-@theme inline {
-  --color-background: var(--bg);
-  --color-foreground: var(--text-primary);
-  --font-sans: system-ui, -apple-system, sans-serif;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --bg: #111111;
